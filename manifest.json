@@ -1,7 +1,7 @@
 {
   "name": "make-mobile",
   "version": "1.0",
-  "description": "User moble user agent on a per site basis",
+  "description": "Use moble user agent on a per site basis",
   "permissions": ["webRequest", "webRequestBlocking",
 	  "http://*/", "https://*/"],
   "background": {

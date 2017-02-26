@@ -1,26 +1,52 @@
-//see: https://developer.chrome.com/extensions/webRequest
-
-//From Feb 2017
-var nexus5UA = "Mozilla/5.0 (Linux; Android 6.0; Nexus 5 Build/MRA58N) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/56.0.2924.87 Mobile Safari/537.36"
-var iphone6UA = "Mozilla/5.0 (iPhone; CPU iPhone OS 9_1 like Mac OS X) AppleWebKit/601.1.46 (KHTML, like Gecko) Version/9.0 Mobile/13B143 Safari/601.1"
-
-chrome.webRequest.onBeforeSendHeaders.addListener(
-	function(details) {
-		//TODO: cookie blocking, script blocking
-		//TODO: don't mess with whitelisted urls
-		//add logic to determine what UA to use
-		for (var i = 0; i < details.requestHeaders.length; ++i) {
-			//console.log(details);
-			//Use mobile user agent
-			if (details.requestHeaders[i].name === 'User-Agent') {
-				//if you use andriod UA, google give urls for android intents
-				details.requestHeaders[i].value = iphone6UA;
-			//Remove referers
-			} else if(details.requestHeaders[i].make === "Referer") {
-				details.requestHeaders.splice(i, 1);
+function replaceHeader(headers, name, value) {
+		for (var i = 0; i < headers.length; ++i) {
+			if (headers[i].name === name) {
+				if(value) {
+					headers[i].value = value;
+				} else {
+					headers.splice(i, 1); //if no value given, then remove header
+				}
+				break;
 			}
 		}
-		return {requestHeaders: details.requestHeaders};
+		return {requestHeaders: headers};
+}
+
+//current as of Feb 2017
+var iphone6UA = "Mozilla/5.0 (iPhone; CPU iPhone OS 9_1 like Mac OS X) AppleWebKit/601.1.46 (KHTML, like Gecko) Version/9.0 Mobile/13B143 Safari/601.1";
+
+var mobile_blacklist = ["https://youtube.com", "https://m.youtube.com", "https://mail.google.com", "https://drive.google.com"];
+var black_list_mode = true;
+
+if(black_list_mode) {
+	console.log("blacklist mode");
+	chrome.webRequest.onBeforeSendHeaders.addListener(
+		function(details) {
+			//if on site whose mobile version is blacklisted, use normal UA
+			for(var i = 0; i < mobile_blacklist.length; ++i) {
+				if(details.url.startsWith(mobile_blacklist[i])) {
+					return {requestHeaders: details.requestHeaders};
+				}
+			}
+			//otherwise
+			return replaceHeader(details.requestHeaders, 'User-Agent', iphone6UA);
+		},
+		{urls: ["<all_urls>"]},
+		["blocking", "requestHeaders"]);
+} else {
+	console.log("whitelist mode");
+	chrome.webRequest.onBeforeSendHeaders.addListener(
+		function(details) {
+			return replaceHeader(details.requestHeaders, 'User-Agent', iphone6UA);
+		},
+		{urls: ["https://en.wikipedia.org/*", "https://arstechnica.com/*"]},
+		["blocking", "requestHeaders"]);
+}
+
+//remove referers
+chrome.webRequest.onBeforeSendHeaders.addListener(
+	function(details) {
+		return replaceHeader(details.requestHeaders, 'Referer', null);
 	},
-	{urls: ["<all_urls>"]}, ["blocking", "requestHeaders"]);
-console.log("init");
+	{urls: ["<all_urls>"]},
+	["blocking", "requestHeaders"]);
